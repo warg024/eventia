@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/layout :: head(${esEdicion ? 'Editar Evento / Proyecto' : 'Nuevo Evento / Proyecto'})}"></head>
+<head th:replace="~{fragments/layout :: head(${esEdicion ? 'Editar Evento' : 'Nuevo Evento'})}"></head>
 <body>
 
 <header th:replace="~{fragments/layout :: navbar}"></header>
@@ -11,7 +11,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="h3 fw-bold text-dark mb-1"
-                th:text="${esEdicion ? 'Editar Evento / Proyecto' : 'Nuevo Evento / Proyecto'}"></h1>
+                th:text="${esEdicion ? 'Editar Evento' : 'Nuevo Evento'}"></h1>
             <p class="text-muted small mb-0">Registro de datos técnicos y económicos para la gestión de EVENTIA</p>
         </div>
         <a th:href="@{/eventos}" class="btn btn-outline-secondary">
