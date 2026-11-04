@@ -5,6 +5,7 @@ import com.archilla.eventia.entity.Provincia;
 import com.archilla.eventia.repository.MunicipioRepository;
 import com.archilla.eventia.repository.ProvinciaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,15 @@ public class UbicacionService {
      */
     public List<Provincia> listarProvincias() {
         return provinciaRepository.findAllByOrderByNombreAsc();
+    }
+
+    /**
+     * Obtiene todos los municipios ordenados alfabéticamente.
+     *
+     * @return Lista completa de municipios.
+     */
+    public List<Municipio> listarTodosMunicipios() {
+        return municipioRepository.findAll(Sort.by(Sort.Direction.ASC, "nombre"));
     }
 
     /**
