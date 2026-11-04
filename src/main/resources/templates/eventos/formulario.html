@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/layout :: head(${esEdicion ? 'Editar Evento' : 'Nuevo Evento'})}"></head>
+<head th:replace="~{fragments/layout :: head(${esEdicion ? 'Editar Evento' : 'Nuevo Evento'})}">
+    <title><title>EVENTIA | Edición Evento</title>
+</head>
 <body>
 
 <header th:replace="~{fragments/layout :: navbar}"></header>
