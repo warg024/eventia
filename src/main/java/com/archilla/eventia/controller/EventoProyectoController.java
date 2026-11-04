@@ -1,111 +1,139 @@
 package com.archilla.eventia.controller;
 
+import com.archilla.eventia.entity.Cliente;
 import com.archilla.eventia.entity.EventoProyecto;
+import com.archilla.eventia.service.ClienteService;
 import com.archilla.eventia.service.EventoProyectoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Controlador RESTful para la gestión del módulo de Eventos y Proyectos en EVENTIA.
- * Expone endpoints JSON para operaciones CRUD y filtrado por estado, cliente o fechas.
- *
- * Ruta base: /api/v1/eventos
+ * Controlador Spring MVC (Thymeleaf) para la gestión del módulo de Eventos y Proyectos en EVENTIA.
+ * Renderiza las vistas HTML de listado (con filtros por estado y cliente), creación y edición con Bootstrap 5.
  */
-@RestController
-@RequestMapping("/api/v1/eventos")
+@Controller
+@RequestMapping("/eventos")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:4200")
 public class EventoProyectoController {
 
     private final EventoProyectoService eventoService;
+    private final ClienteService clienteService;
 
     /**
-     * GET /api/v1/eventos
-     * Obtiene la lista completa de eventos o filtrada por estado y/o cliente.
+     * GET /eventos
+     * Muestra la vista con el listado de eventos, permitiendo filtrar por estado y/o cliente.
      */
     @GetMapping
-    public ResponseEntity<List<EventoProyecto>> listarEventos(
+    public String listarEventos(
             @RequestParam(required = false) String estado,
-            @RequestParam(required = false) Long clienteId) {
+            @RequestParam(required = false) Long clienteId,
+            Model model) {
 
-        return ResponseEntity.ok(eventoService.listarConFiltros(estado, clienteId));
+        List<EventoProyecto> eventos = eventoService.listarConFiltros(estado, clienteId);
+        List<Cliente> clientes = clienteService.listarTodos();
+
+        model.addAttribute("eventos", eventos);
+        model.addAttribute("clientes", clientes);
+        model.addAttribute("estadoFiltro", estado != null ? estado : "");
+        model.addAttribute("clienteIdFiltro", clienteId);
+        model.addAttribute("seccionActiva", "eventos");
+        return "eventos/lista";
     }
 
     /**
-     * GET /api/v1/eventos/rango-fechas?inicio=2027-01-01&fin=2027-01-31
-     * Obtiene eventos programados entre dos fechas.
+     * GET /eventos/nuevo
+     * Muestra el formulario para registrar un nuevo evento o proyecto.
      */
-    @GetMapping("/rango-fechas")
-    public ResponseEntity<List<EventoProyecto>> listarPorRangoFechas(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fin) {
+    @GetMapping("/nuevo")
+    public String mostrarFormularioNuevo(Model model) {
+        EventoProyecto evento = new EventoProyecto();
+        evento.setEstado("PRESUPUESTADO");
 
-        return ResponseEntity.ok(eventoService.listarPorRangoFechas(inicio, fin));
+        model.addAttribute("evento", evento);
+        model.addAttribute("clientes", clienteService.listarTodos());
+        model.addAttribute("esEdicion", false);
+        model.addAttribute("seccionActiva", "eventos");
+        return "eventos/formulario";
     }
 
     /**
-     * GET /api/v1/eventos/{id}
-     * Obtiene los detalles de un evento por su ID.
+     * GET /eventos/editar/{id}
+     * Muestra el formulario para editar un evento existente.
      */
-    @GetMapping("/{id}")
-    public ResponseEntity<EventoProyecto> obtenerPorId(@PathVariable Long id) {
+    @GetMapping("/editar/{id}")
+    public String mostrarFormularioEditar(@PathVariable Long id, Model model, RedirectAttributes flash) {
         return eventoService.obtenerPorId(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    /**
-     * POST /api/v1/eventos
-     * Registra un nuevo evento/proyecto en la base de datos.
-     */
-    @PostMapping
-    public ResponseEntity<EventoProyecto> crearEvento(@Valid @RequestBody EventoProyecto evento) {
-        EventoProyecto nuevoEvento = eventoService.guardar(evento);
-        return ResponseEntity.status(HttpStatus.CREATED).body(nuevoEvento);
-    }
-
-    /**
-     * PUT /api/v1/eventos/{id}
-     * Actualiza los datos de un evento existente.
-     */
-    @PutMapping("/{id}")
-    public ResponseEntity<EventoProyecto> actualizarEvento(
-            @PathVariable Long id,
-            @Valid @RequestBody EventoProyecto detalles) {
-
-        return eventoService.obtenerPorId(id)
-                .map(existente -> {
-                    existente.setNombreEvento(detalles.getNombreEvento());
-                    existente.setFechaInicio(detalles.getFechaInicio());
-                    existente.setFechaFin(detalles.getFechaFin());
-                    existente.setPresupuesto(detalles.getPresupuesto());
-                    existente.setEstado(detalles.getEstado());
-                    existente.setUbicacion(detalles.getUbicacion());
-                    existente.setCliente(detalles.getCliente());
-
-                    EventoProyecto actualizado = eventoService.guardar(existente);
-                    return ResponseEntity.ok(actualizado);
+                .map(evento -> {
+                    model.addAttribute("evento", evento);
+                    model.addAttribute("clientes", clienteService.listarTodos());
+                    model.addAttribute("esEdicion", true);
+                    model.addAttribute("seccionActiva", "eventos");
+                    return "eventos/formulario";
                 })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseGet(() -> {
+                    flash.addFlashAttribute("mensajeError", "El evento o proyecto solicitado no existe.");
+                    return "redirect:/eventos";
+                });
     }
 
     /**
-     * DELETE /api/v1/eventos/{id}
-     * Elimina un evento por su ID.
+     * POST /eventos/guardar
+     * Procesa el formulario para dar de alta o actualizar un evento/proyecto.
      */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminarEvento(@PathVariable Long id) {
+    @PostMapping("/guardar")
+    public String guardarEvento(
+            @Valid @ModelAttribute("evento") EventoProyecto evento,
+            BindingResult result,
+            @RequestParam(required = false) Long clienteId,
+            Model model,
+            RedirectAttributes flash) {
+
+        if (clienteId != null) {
+            Cliente cliente = clienteService.obtenerPorId(clienteId).orElse(null);
+            evento.setCliente(cliente);
+        }
+
+        if (evento.getCliente() == null || evento.getCliente().getId() == null) {
+            model.addAttribute("errorMsg", "Debe seleccionar obligatoriamente un cliente contratante.");
+            model.addAttribute("clientes", clienteService.listarTodos());
+            model.addAttribute("esEdicion", evento.getId() != null);
+            model.addAttribute("seccionActiva", "eventos");
+            return "eventos/formulario";
+        }
+
+        if (result.hasErrors()) {
+            model.addAttribute("clientes", clienteService.listarTodos());
+            model.addAttribute("esEdicion", evento.getId() != null);
+            model.addAttribute("seccionActiva", "eventos");
+            return "eventos/formulario";
+        }
+
+        boolean eraEdicion = evento.getId() != null;
+        eventoService.guardar(evento);
+        flash.addFlashAttribute("mensajeExito",
+                eraEdicion ? "Evento / Proyecto actualizado correctamente." : "Nuevo Evento / Proyecto registrado con éxito.");
+        return "redirect:/eventos";
+    }
+
+    /**
+     * POST /eventos/eliminar/{id}
+     * Elimina un evento por su ID y redirige al listado.
+     */
+    @PostMapping("/eliminar/{id}")
+    public String eliminarEvento(@PathVariable Long id, RedirectAttributes flash) {
         if (eventoService.obtenerPorId(id).isPresent()) {
             eventoService.eliminar(id);
-            return ResponseEntity.noContent().build();
+            flash.addFlashAttribute("mensajeExito", "Evento eliminado de la programación correctamente.");
+        } else {
+            flash.addFlashAttribute("mensajeError", "No se encontró el evento a eliminar.");
         }
-        return ResponseEntity.notFound().build();
+        return "redirect:/eventos";
     }
 }

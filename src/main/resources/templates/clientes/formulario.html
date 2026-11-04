@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${esEdicion ? 'Editar Cliente' : 'Nuevo Cliente'})}"></head>
+<body>
+
+<header th:replace="~{fragments/layout :: navbar}"></header>
+
+<main class="container py-4" style="max-width: 900px;">
+
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1" th:text="${esEdicion ? 'Editar Cliente' : 'Nuevo Cliente'}"></h1>
+            <p class="text-muted small mb-0">Gestión de datos fiscales, de contacto y ubicación oficial del cliente</p>
+        </div>
+        <a th:href="@{/clientes}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Volver al listado
+        </a>
+    </div>
+
+    <!-- Alerta de Error General -->
+    <div th:if="${errorMsg}" class="alert alert-danger shadow-sm mb-4" role="alert">
+        <i class="bi bi-exclamation-octagon-fill me-2"></i>
+        <span th:text="${errorMsg}"></span>
+    </div>
+
+    <!-- Formulario Bootstrap 5 -->
+    <form th:action="@{/clientes/guardar}" th:object="${cliente}" method="post" class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+
+            <!-- ID oculto para edición -->
+            <input type="hidden" th:field="*{id}" />
+
+            <!-- Sección 1: Identificación Fiscal -->
+            <h5 class="text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-card-heading me-1"></i> 1. Identificación Fiscal
+            </h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-7">
+                    <label for="razonSocial" class="form-label fw-semibold">
+                        Razón Social / Nombre Comercial <span class="text-danger">*</span>
+                    </label>
+                    <input type="text"
+                           id="razonSocial"
+                           th:field="*{razonSocial}"
+                           class="form-control"
+                           th:classappend="${#fields.hasErrors('razonSocial')} ? 'is-invalid' : ''"
+                           placeholder="Ej. Ayuntamiento de Granada / Eventos Sur S.L."
+                           required />
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('razonSocial')}" th:errors="*{razonSocial}"></div>
+                </div>
+
+                <div class="col-md-5">
+                    <label for="cif" class="form-label fw-semibold">
+                        CIF / NIF <span class="text-danger">*</span>
+                    </label>
+                    <input type="text"
+                           id="cif"
+                           th:field="*{cif}"
+                           class="form-control font-monospace"
+                           th:classappend="${#fields.hasErrors('cif')} ? 'is-invalid' : ''"
+                           placeholder="Ej. P1800000A"
+                           required />
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('cif')}" th:errors="*{cif}"></div>
+                </div>
+            </div>
+
+            <!-- Sección 2: Contacto Corporativo -->
+            <h5 class="text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-person-lines-fill me-1"></i> 2. Contacto Corporativo
+            </h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label for="personaContacto" class="form-label fw-semibold">Persona de Contacto</label>
+                    <input type="text"
+                           id="personaContacto"
+                           th:field="*{personaContacto}"
+                           class="form-control"
+                           placeholder="Ej. Juan Pérez" />
+                </div>
+
+                <div class="col-md-4">
+                    <label for="email" class="form-label fw-semibold">Correo Electrónico</label>
+                    <input type="email"
+                           id="email"
+                           th:field="*{email}"
+                           class="form-control"
+                           th:classappend="${#fields.hasErrors('email')} ? 'is-invalid' : ''"
+                           placeholder="ejemplo@dominio.com" />
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="telefono" class="form-label fw-semibold">Teléfono</label>
+                    <input type="text"
+                           id="telefono"
+                           th:field="*{telefono}"
+                           class="form-control"
+                           placeholder="Ej. 958 123 456" />
+                </div>
+            </div>
+
+            <!-- Sección 3: Dirección y Ubicación Oficial -->
+            <h5 class="text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-geo-alt-fill me-1"></i> 3. Dirección y Ubicación Oficial
+            </h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="direccionCalle" class="form-label fw-semibold">Dirección / Vía</label>
+                    <input type="text"
+                           id="direccionCalle"
+                           th:field="*{direccionCalle}"
+                           class="form-control"
+                           placeholder="Ej. Calle Gran Vía, 12" />
+                </div>
+
+                <div class="col-md-4">
+                    <label for="provinciaSelect" class="form-label fw-semibold">Provincia</label>
+                    <select id="provinciaSelect"
+                            name="provinciaId"
+                            class="form-select"
+                            onchange="filtrarMunicipiosPorProvincia()">
+                        <option value="">-- Selecciona Provincia --</option>
+                        <option th:each="prov : ${provincias}"
+                                th:value="${prov.id}"
+                                th:text="${prov.codigo + ' - ' + prov.nombre}"
+                                th:selected="${provinciaSeleccionadaId != null and provinciaSeleccionadaId == prov.id}">
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="municipioSelect" class="form-label fw-semibold">Municipio</label>
+                    <select id="municipioSelect"
+                            name="municipioId"
+                            class="form-select">
+                        <option value="">-- Selecciona Municipio --</option>
+                        <option th:each="mun : ${municipios}"
+                                th:value="${mun.id}"
+                                th:attr="data-provincia-id=${mun.provincia?.id}"
+                                th:text="${mun.nombre + ' (CP: ' + mun.codigoPostal + ')'}"
+                                th:selected="${cliente.municipio != null and cliente.municipio.id == mun.id}">
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Pie del Formulario -->
+        <div class="card-footer bg-light py-3 px-4 d-flex justify-content-end gap-2">
+            <a th:href="@{/clientes}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary px-4">
+                <i class="bi bi-check-lg me-1"></i>
+                <span th:text="${esEdicion ? 'Actualizar Cliente' : 'Guardar Cliente'}"></span>
+            </button>
+        </div>
+    </form>
+
+</main>
+
+<script>
+    function filtrarMunicipiosPorProvincia(conservarSeleccion) {
+        const provinciaSelect = document.getElementById('provinciaSelect');
+        const municipioSelect = document.getElementById('municipioSelect');
+        const provId = provinciaSelect.value;
+
+        const opciones = municipioSelect.querySelectorAll('option[data-provincia-id]');
+        opciones.forEach(opt => {
+            if (!provId || opt.getAttribute('data-provincia-id') === provId) {
+                opt.hidden = false;
+                opt.disabled = false;
+            } else {
+                opt.hidden = true;
+                opt.disabled = true;
+                if (!conservarSeleccion && opt.selected) {
+                    municipioSelect.value = '';
+                }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        filtrarMunicipiosPorProvincia(true);
+    });
+</script>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+
+</body>
+</html>

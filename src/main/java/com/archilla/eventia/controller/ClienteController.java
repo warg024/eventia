@@ -1,114 +1,153 @@
 package com.archilla.eventia.controller;
 
 import com.archilla.eventia.entity.Cliente;
+import com.archilla.eventia.entity.Municipio;
 import com.archilla.eventia.service.ClienteService;
+import com.archilla.eventia.service.UbicacionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 
 /**
- * Controlador RESTful para la gestión del módulo de Clientes en EVENTIA.
- * Expone endpoints JSON para operaciones CRUD consumibles por Angular / Apps móviles.
- *
- * Ruta base: /api/v1/clientes
+ * Controlador Spring MVC (Thymeleaf) para la gestión del módulo de Clientes en EVENTIA.
+ * Renderiza las vistas HTML de listado, creación y edición de clientes con Bootstrap 5.
  */
-@RestController
-@RequestMapping("/api/v1/clientes")
+@Controller
+@RequestMapping("/clientes")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:4200")
 public class ClienteController {
 
     private final ClienteService clienteService;
+    private final UbicacionService ubicacionService;
 
     /**
-     * GET /api/v1/clientes
-     * Obtiene la lista completa de clientes.
-     * Admite filtrado opcional por razón social mediante un query param: /api/v1/clientes?buscar=Ayuntamiento
-     *
-     * @param buscar Texto opcional para filtrar por razón social.
-     * @return Lista de clientes en formato JSON (HTTP 200 OK).
+     * GET /clientes
+     * Muestra la vista con el listado completo de clientes o filtrado por razón social.
      */
     @GetMapping
-    public ResponseEntity<List<Cliente>> listarClientes(@RequestParam(required = false) String buscar) {
+    public String listarClientes(@RequestParam(required = false) String buscar, Model model) {
+        List<Cliente> clientes;
         if (buscar != null && !buscar.isBlank()) {
-            return ResponseEntity.ok(clienteService.buscarPorRazonSocial(buscar));
+            clientes = clienteService.buscarPorRazonSocial(buscar.trim());
+        } else {
+            clientes = clienteService.listarTodos();
         }
-        return ResponseEntity.ok(clienteService.listarTodos());
+
+        model.addAttribute("clientes", clientes);
+        model.addAttribute("buscar", buscar != null ? buscar : "");
+        model.addAttribute("seccionActiva", "clientes");
+        return "clientes/lista";
     }
 
     /**
-     * GET /api/v1/clientes/{id}
-     * Obtiene los detalles de un cliente específico a partir de su ID.
-     *
-     * @param id Identificador primario del cliente.
-     * @return Cliente encontrado (HTTP 200 OK) o HTTP 404 Not Found si no existe.
+     * GET /clientes/nuevo
+     * Muestra el formulario para registrar un nuevo cliente.
      */
-    @GetMapping("/{id}")
-    public ResponseEntity<Cliente> obtenerClientePorId(@PathVariable Long id) {
+    @GetMapping("/nuevo")
+    public String mostrarFormularioNuevo(Model model) {
+        model.addAttribute("cliente", new Cliente());
+        model.addAttribute("esEdicion", false);
+        cargarCatalogosUbicacion(model, null);
+        model.addAttribute("seccionActiva", "clientes");
+        return "clientes/formulario";
+    }
+
+    /**
+     * GET /clientes/editar/{id}
+     * Muestra el formulario con los datos de un cliente existente para su edición.
+     */
+    @GetMapping("/editar/{id}")
+    public String mostrarFormularioEditar(@PathVariable Long id, Model model, RedirectAttributes flash) {
         return clienteService.obtenerPorId(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    /**
-     * POST /api/v1/clientes
-     * Crea y persiste un nuevo cliente en la base de datos.
-     *
-     * @param cliente Objeto cliente enviado en el cuerpo de la petición (JSON).
-     * @return Cliente guardado con su ID asignado y estado HTTP 201 Created.
-     */
-    @PostMapping
-    public ResponseEntity<Cliente> crearCliente(@Valid @RequestBody Cliente cliente) {
-        Cliente clienteGuardado = clienteService.guardar(cliente);
-        return ResponseEntity.status(HttpStatus.CREATED).body(clienteGuardado);
-    }
-
-    /**
-     * PUT /api/v1/clientes/{id}
-     * Actualiza los datos de un cliente existente.
-     *
-     * @param id Identificador del cliente a modificar.
-     * @param clienteDetalles Datos actualizados del cliente.
-     * @return Cliente actualizado (HTTP 200 OK) o HTTP 404 Not Found si no existe.
-     */
-    @PutMapping("/{id}")
-    public ResponseEntity<Cliente> actualizarCliente(
-            @PathVariable Long id,
-            @Valid @RequestBody Cliente clienteDetalles) {
-
-        return clienteService.obtenerPorId(id)
-                .map(clienteExistente -> {
-                    clienteExistente.setRazonSocial(clienteDetalles.getRazonSocial());
-                    clienteExistente.setCif(clienteDetalles.getCif());
-                    clienteExistente.setPersonaContacto(clienteDetalles.getPersonaContacto());
-                    clienteExistente.setEmail(clienteDetalles.getEmail());
-                    clienteExistente.setTelefono(clienteDetalles.getTelefono());
-                    clienteExistente.setDireccionCalle(clienteDetalles.getDireccionCalle());
-                    clienteExistente.setMunicipio(clienteDetalles.getMunicipio());
-
-                    Cliente clienteActualizado = clienteService.guardar(clienteExistente);
-                    return ResponseEntity.ok(clienteActualizado);
+                .map(cliente -> {
+                    model.addAttribute("cliente", cliente);
+                    model.addAttribute("esEdicion", true);
+                    Long provinciaId = (cliente.getMunicipio() != null && cliente.getMunicipio().getProvincia() != null)
+                            ? cliente.getMunicipio().getProvincia().getId()
+                            : null;
+                    cargarCatalogosUbicacion(model, provinciaId);
+                    model.addAttribute("seccionActiva", "clientes");
+                    return "clientes/formulario";
                 })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseGet(() -> {
+                    flash.addFlashAttribute("mensajeError", "El cliente solicitado no existe en la base de datos.");
+                    return "redirect:/clientes";
+                });
     }
 
     /**
-     * DELETE /api/v1/clientes/{id}
-     * Elimina un cliente de la base de datos por su ID.
-     *
-     * @param id Identificador del cliente a eliminar.
-     * @return HTTP 204 No Content tras la eliminación exitosa, o 404 Not Found si no existía.
+     * POST /clientes/guardar
+     * Procesa el envío del formulario para crear o actualizar un cliente.
      */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminarCliente(@PathVariable Long id) {
-        if (clienteService.obtenerPorId(id).isPresent()) {
-            clienteService.eliminar(id);
-            return ResponseEntity.noContent().build();
+    @PostMapping("/guardar")
+    public String guardarCliente(
+            @Valid @ModelAttribute("cliente") Cliente cliente,
+            BindingResult result,
+            @RequestParam(required = false) Long municipioId,
+            @RequestParam(required = false) Long provinciaId,
+            Model model,
+            RedirectAttributes flash) {
+
+        if (municipioId != null) {
+            Municipio municipio = ubicacionService.obtenerMunicipioPorId(municipioId).orElse(null);
+            cliente.setMunicipio(municipio);
+        } else {
+            cliente.setMunicipio(null);
         }
-        return ResponseEntity.notFound().build();
+
+        if (result.hasErrors()) {
+            model.addAttribute("esEdicion", cliente.getId() != null);
+            cargarCatalogosUbicacion(model, provinciaId);
+            model.addAttribute("seccionActiva", "clientes");
+            return "clientes/formulario";
+        }
+
+        try {
+            boolean eraEdicion = cliente.getId() != null;
+            clienteService.guardar(cliente);
+            flash.addFlashAttribute("mensajeExito",
+                    eraEdicion ? "Cliente actualizado correctamente." : "Nuevo cliente registrado con éxito.");
+            return "redirect:/clientes";
+        } catch (DataIntegrityViolationException e) {
+            model.addAttribute("esEdicion", cliente.getId() != null);
+            model.addAttribute("errorMsg", "Error de integridad: Ya existe un cliente registrado con el CIF/NIF indicado.");
+            cargarCatalogosUbicacion(model, provinciaId);
+            model.addAttribute("seccionActiva", "clientes");
+            return "clientes/formulario";
+        }
+    }
+
+    /**
+     * POST /clientes/eliminar/{id}
+     * Elimina un cliente por su ID y redirige al listado.
+     */
+    @PostMapping("/eliminar/{id}")
+    public String eliminarCliente(@PathVariable Long id, RedirectAttributes flash) {
+        if (clienteService.obtenerPorId(id).isEmpty()) {
+            flash.addFlashAttribute("mensajeError", "No se encontró el cliente a eliminar.");
+            return "redirect:/clientes";
+        }
+
+        try {
+            clienteService.eliminar(id);
+            flash.addFlashAttribute("mensajeExito", "Cliente eliminado correctamente.");
+        } catch (DataIntegrityViolationException e) {
+            flash.addFlashAttribute("mensajeError",
+                    "No se puede eliminar el cliente porque tiene eventos o proyectos asociados.");
+        }
+        return "redirect:/clientes";
+    }
+
+    private void cargarCatalogosUbicacion(Model model, Long provinciaSeleccionadaId) {
+        model.addAttribute("provincias", ubicacionService.listarProvincias());
+        model.addAttribute("municipios", ubicacionService.listarTodosMunicipios());
+        model.addAttribute("provinciaSeleccionadaId", provinciaSeleccionadaId);
     }
 }

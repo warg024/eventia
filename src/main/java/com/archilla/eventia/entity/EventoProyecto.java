@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -43,6 +44,7 @@ public class EventoProyecto {
      * Fecha de inicio de las actuaciones o montaje en el recinto.
      */
     @NotNull(message = "La fecha de inicio es obligatoria")
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
 
@@ -50,6 +52,7 @@ public class EventoProyecto {
      * Fecha de finalización o desmontaje del evento.
      */
     @NotNull(message = "La fecha de fin es obligatoria")
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
     @Column(name = "fecha_fin", nullable = false)
     private LocalDate fechaFin;
 
