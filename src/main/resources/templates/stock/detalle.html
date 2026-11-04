@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Asignaciones de ' + ${recurso.nombre})}">
+    <title>EVENTIA | Detalle y Asignación de Recurso</title>
+</head>
+<body>
+
+<header th:replace="~{fragments/layout :: navbar}"></header>
+
+<main class="container py-4">
+
+    <!-- Cabecera -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-dark font-monospace fs-6" th:text="${recurso.codigo}"></span>
+                <h1 class="h3 fw-bold text-dark mb-0" th:text="${recurso.nombre}"></h1>
+            </div>
+            <p class="text-muted small mb-0" th:text="${recurso.descripcion != null ? recurso.descripcion : 'Ficha de control de disponibilidad y asignación a eventos'}"></p>
+        </div>
+        <div class="d-flex gap-2">
+            <a th:href="@{/stock/editar/{id}(id=${recurso.id})}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil-square me-1"></i> Editar Ficha
+            </a>
+            <a th:href="@{/stock}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Volver al Stock
+            </a>
+        </div>
+    </div>
+
+    <!-- Mensajes Flash -->
+    <div th:if="${mensajeExito}" class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <span th:text="${mensajeExito}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+
+    <div th:if="${mensajeError}" class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span th:text="${mensajeError}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+
+    <!-- Resumen de Disponibilidad del Recurso -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Categoría / Estado</div>
+                    <div class="fw-bold text-dark" th:text="${recurso.categoria}"></div>
+                    <span class="badge rounded-pill mt-1"
+                          th:classappend="${recurso.estado == 'DISPONIBLE' ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}"
+                          th:text="${recurso.estado}"></span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Capacidad Total</div>
+                    <div class="h3 fw-bold text-dark mb-0">
+                        <span th:text="${recurso.cantidadTotal}"></span>
+                        <span class="fs-6 fw-normal text-muted" th:text="${recurso.personal ? 'efectivos' : 'uds.'}"></span>
+                    </div>
+                    <div class="small text-muted" th:text="${recurso.ubicacionAlmacen != null ? recurso.ubicacionAlmacen : 'Almacén General'}"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Asignadas Activas</div>
+                    <div class="h3 fw-bold text-warning-emphasis mb-0" th:text="${recurso.cantidadAsignada}">0</div>
+                    <div class="small text-muted">En eventos activos</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Disponibles Ahora</div>
+                    <div class="h3 fw-bold mb-0"
+                         th:classappend="${recurso.cantidadDisponible > 0 ? 'text-success' : 'text-danger'}"
+                         th:text="${recurso.cantidadDisponible}">0</div>
+                    <div class="small text-muted" th:if="${recurso.costeUnitario != null}"
+                         th:text="${'Tarifa: ' + #numbers.formatDecimal(recurso.costeUnitario, 1, 'POINT', 2, 'COMMA') + ' € / ud.'}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario para Asignar este Recurso a un Evento -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-calendar-plus text-primary me-2"></i> Asignar este Recurso / Personal a un Evento
+            </h5>
+        </div>
+        <div class="card-body">
+            <form th:action="@{/stock/asignar}" method="post" class="row g-3 align-items-end">
+                <input type="hidden" name="recursoId" th:value="${recurso.id}" />
+                <input type="hidden" name="origen" value="stock" />
+
+                <div class="col-12 col-md-4">
+                    <label for="eventoSelect" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Evento Destino <span class="text-danger">*</span>
+                    </label>
+                    <select id="eventoSelect" name="eventoId" class="form-select" required>
+                        <option value="">-- Selecciona un Evento Activo --</option>
+                        <option th:each="ev : ${eventosActivos}"
+                                th:value="${ev.id}"
+                                th:text="${ev.nombreEvento + ' (' + #temporals.format(ev.fechaInicio, 'dd/MM/yyyy') + ' - ' + ev.estado + ')'}">
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-2">
+                    <label for="cantidadInput" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Cantidad <span class="text-danger">*</span>
+                    </label>
+                    <input type="number"
+                           id="cantidadInput"
+                           name="cantidad"
+                           min="1"
+                           th:max="${recurso.cantidadDisponible > 0 ? recurso.cantidadDisponible : 1}"
+                           value="1"
+                           class="form-control"
+                           required />
+                </div>
+
+                <div class="col-6 col-md-2">
+                    <label for="estadoAsignacion" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Estado Inicial
+                    </label>
+                    <select id="estadoAsignacion" name="estadoAsignacion" class="form-select">
+                        <option value="RESERVADO">Reservado</option>
+                        <option value="EN_USO">En Uso / Desplegado</option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label for="responsableInput" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Responsable / Coordinador
+                    </label>
+                    <input type="text"
+                           id="responsableInput"
+                           name="responsable"
+                           class="form-control"
+                           placeholder="Ej. Jefe de Producción / Nombre técnico" />
+                </div>
+
+                <div class="col-12 col-md-9">
+                    <label for="observacionesInput" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Notas de Montaje, Turno u Observaciones
+                    </label>
+                    <input type="text"
+                           id="observacionesInput"
+                           name="observaciones"
+                           class="form-control"
+                           placeholder="Ej. Montaje a las 08:00h, turno de tarde, llevar cableado adicional..." />
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <button type="submit"
+                            class="btn btn-primary w-100"
+                            th:disabled="${recurso.cantidadDisponible == 0}">
+                        <i class="bi bi-check2-circle me-1"></i> Asignar al Evento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Historial de Asignaciones de este Recurso -->
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-list-check text-secondary me-2"></i> Eventos con este Recurso Asignado
+            </h5>
+            <span class="badge bg-secondary" th:text="${#lists.size(asignaciones) + ' registro(s)'}"></span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light text-uppercase small text-secondary">
+                <tr>
+                    <th class="ps-4 py-3">Evento / Cliente</th>
+                    <th class="py-3">Fechas Evento</th>
+                    <th class="py-3 text-center">Cantidad</th>
+                    <th class="py-3">Responsable y Notas</th>
+                    <th class="py-3">Estado Asignación</th>
+                    <th class="pe-4 py-3 text-end">Acciones</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="asig : ${asignaciones}">
+                    <td class="ps-4 py-3">
+                        <a th:href="@{/eventos/{id}/recursos(id=${asig.evento.id})}"
+                           class="fw-bold text-dark text-decoration-none"
+                           th:text="${asig.evento.nombreEvento}"></a>
+                        <div class="small text-muted" th:text="${asig.evento.cliente?.razonSocial}"></div>
+                    </td>
+                    <td class="py-3 small">
+                        <div th:text="${#temporals.format(asig.evento.fechaInicio, 'dd/MM/yyyy') + ' al ' + #temporals.format(asig.evento.fechaFin, 'dd/MM/yyyy')}"></div>
+                        <span class="badge bg-light text-dark border mt-1" th:text="${asig.evento.estado}"></span>
+                    </td>
+                    <td class="py-3 text-center fw-bold text-dark">
+                        <span th:text="${asig.cantidad}"></span>
+                        <div class="small text-muted fw-normal"
+                             th:if="${asig.costeEstimado != null and asig.costeEstimado > 0}"
+                             th:text="${#numbers.formatDecimal(asig.costeEstimado, 1, 'POINT', 2, 'COMMA') + ' €'}"></div>
+                    </td>
+                    <td class="py-3 small">
+                        <div th:if="${asig.responsable != null}" class="fw-semibold text-dark">
+                            <i class="bi bi-person-badge me-1 text-primary"></i>
+                            <span th:text="${asig.responsable}"></span>
+                        </div>
+                        <div th:if="${asig.observaciones != null}" class="text-muted" th:text="${asig.observaciones}"></div>
+                        <span th:if="${asig.responsable == null and asig.observaciones == null}" class="text-muted">—</span>
+                    </td>
+                    <td class="py-3">
+                        <span class="badge rounded-pill px-3 py-2"
+                              th:classappend="${asig.estadoAsignacion == 'RESERVADO' ? 'bg-warning-subtle text-warning-emphasis' :
+                                               (asig.estadoAsignacion == 'EN_USO' ? 'bg-primary-subtle text-primary-emphasis' :
+                                               'bg-success-subtle text-success-emphasis')}"
+                              th:text="${asig.estadoAsignacion}">
+                        </span>
+                    </td>
+                    <td class="pe-4 py-3 text-end">
+                        <div class="d-inline-flex gap-1 align-items-center">
+                            <!-- Cambiar estado rápido -->
+                            <form th:if="${asig.estadoAsignacion != 'EN_USO'}"
+                                  th:action="@{/stock/asignaciones/{id}/estado(id=${asig.id})}"
+                                  method="post" class="d-inline">
+                                <input type="hidden" name="nuevoEstado" value="EN_USO" />
+                                <input type="hidden" name="origen" value="stock" />
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Marcar En Uso">
+                                    En Uso
+                                </button>
+                            </form>
+                            <form th:if="${asig.estadoAsignacion != 'DEVUELTO'}"
+                                  th:action="@{/stock/asignaciones/{id}/estado(id=${asig.id})}"
+                                  method="post" class="d-inline">
+                                <input type="hidden" name="nuevoEstado" value="DEVUELTO" />
+                                <input type="hidden" name="origen" value="stock" />
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Marcar Devuelto / Finalizado (Libera Stock)">
+                                    <i class="bi bi-arrow-return-left me-1"></i> Devuelto
+                                </button>
+                            </form>
+                            <form th:action="@{/stock/asignaciones/{id}/eliminar(id=${asig.id})}"
+                                  method="post"
+                                  class="d-inline"
+                                  onsubmit="return confirm('¿Deseas eliminar esta asignación y liberar el stock?');">
+                                <input type="hidden" name="origen" value="stock" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar asignación">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(asignaciones)}">
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="bi bi-calendar2-x fs-2 d-block mb-2"></i>
+                        Este recurso no tiene asignaciones registradas todavía.
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+
+</body>
+</html>

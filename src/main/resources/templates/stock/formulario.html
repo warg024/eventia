@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${esEdicion ? 'Editar Recurso de Stock' : 'Nuevo Recurso de Stock'})}">
+    <title>EVENTIA | Formulario Stock</title>
+</head>
+<body>
+
+<header th:replace="~{fragments/layout :: navbar}"></header>
+
+<main class="container py-4" style="max-width: 900px;">
+
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1"
+                th:text="${esEdicion ? 'Editar Recurso / Personal' : 'Nuevo Recurso / Personal'}"></h1>
+            <p class="text-muted small mb-0">
+                Ficha de catálogo para material de eventos, equipos técnicos, técnicos o animadores
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a th:if="${esEdicion and recurso.id != null}"
+               th:href="@{/stock/detalle/{id}(id=${recurso.id})}"
+               class="btn btn-dark">
+                <i class="bi bi-calendar-plus me-1"></i> Asignaciones del Recurso
+            </a>
+            <a th:href="@{/stock}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Volver al Stock
+            </a>
+        </div>
+    </div>
+
+    <!-- Alerta de Error -->
+    <div th:if="${errorMsg}" class="alert alert-danger shadow-sm mb-4" role="alert">
+        <i class="bi bi-exclamation-octagon-fill me-2"></i>
+        <span th:text="${errorMsg}"></span>
+    </div>
+
+    <!-- Formulario Bootstrap 5 -->
+    <form th:action="@{/stock/guardar}" th:object="${recurso}" method="post" class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+
+            <!-- ID oculto para edición -->
+            <input type="hidden" th:field="*{id}" />
+
+            <!-- Sección 1: Identificación y Categoría -->
+            <h5 class="text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-upc-scan me-1"></i> 1. Identificación y Clasificación
+            </h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label for="codigo" class="form-label fw-semibold">
+                        Código de Referencia <span class="text-danger">*</span>
+                    </label>
+                    <input type="text"
+                           id="codigo"
+                           th:field="*{codigo}"
+                           class="form-control font-monospace text-uppercase"
+                           th:classappend="${#fields.hasErrors('codigo')} ? 'is-invalid' : ''"
+                           placeholder="Ej. SND-001, TEC-001, ANI-001"
+                           required />
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('codigo')}" th:errors="*{codigo}"></div>
+                </div>
+
+                <div class="col-md-8">
+                    <label for="nombre" class="form-label fw-semibold">
+                        Nombre del Material, Equipo o Perfil Profesional <span class="text-danger">*</span>
+                    </label>
+                    <input type="text"
+                           id="nombre"
+                           th:field="*{nombre}"
+                           class="form-control"
+                           th:classappend="${#fields.hasErrors('nombre')} ? 'is-invalid' : ''"
+                           placeholder="Ej. Sistema Line Array JBL VTX / Técnico de Sonido FOH / Animador Infantil"
+                           required />
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}"></div>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="categoria" class="form-label fw-semibold">
+                        Categoría del Recurso <span class="text-danger">*</span>
+                    </label>
+                    <select id="categoria" th:field="*{categoria}" class="form-select" required>
+                        <option value="">-- Selecciona una Categoría --</option>
+                        <option value="SONIDO">Sonido y Audio</option>
+                        <option value="ILUMINACION">Iluminación y Efectos Especiales</option>
+                        <option value="EQUIPO_TECNICO">Equipo Técnico y Audiovisual</option>
+                        <option value="ESTRUCTURAS">Escenarios, Carpas y Mobiliario</option>
+                        <option value="PERSONAL_TECNICO">Personal Técnico y Montadores</option>
+                        <option value="ANIMADORES">Animadores, Artistas y Ocio</option>
+                        <option value="OTROS">Otros Materiales / Consumibles</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="ubicacionAlmacen" class="form-label fw-semibold">
+                        Ubicación en Almacén / Procedencia
+                    </label>
+                    <input type="text"
+                           id="ubicacionAlmacen"
+                           th:field="*{ubicacionAlmacen}"
+                           class="form-control"
+                           placeholder="Ej. Nave Central - Pasillo 2 / Plantilla Interna / Bolsa de Empleo" />
+                </div>
+
+                <div class="col-12">
+                    <label for="descripcion" class="form-label fw-semibold">
+                        Especificaciones Técnicas / Descripción del Perfil
+                    </label>
+                    <textarea id="descripcion"
+                              th:field="*{descripcion}"
+                              rows="2"
+                              class="form-control"
+                              placeholder="Detalles técnicos (potencia, dimensiones, conectores) o cualificación del personal..."></textarea>
+                </div>
+            </div>
+
+            <!-- Sección 2: Capacidad, Costes y Estado -->
+            <h5 class="text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-sliders me-1"></i> 2. Disponibilidad, Tarifas y Estado Operativo
+            </h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="cantidadTotal" class="form-label fw-semibold">
+                        Cantidad Total (Uds. / Efectivos) <span class="text-danger">*</span>
+                    </label>
+                    <input type="number"
+                           min="1"
+                           id="cantidadTotal"
+                           th:field="*{cantidadTotal}"
+                           class="form-control"
+                           th:classappend="${#fields.hasErrors('cantidadTotal')} ? 'is-invalid' : ''"
+                           required />
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('cantidadTotal')}" th:errors="*{cantidadTotal}"></div>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="costeUnitario" class="form-label fw-semibold">
+                        Coste / Tarifa Unitaria (€)
+                    </label>
+                    <div class="input-group">
+                        <input type="number"
+                               step="0.01"
+                               min="0"
+                               id="costeUnitario"
+                               th:field="*{costeUnitario}"
+                               class="form-control font-monospace"
+                               placeholder="Ej. 180.00" />
+                        <span class="input-group-text">€</span>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="estado" class="form-label fw-semibold">
+                        Estado Operativo <span class="text-danger">*</span>
+                    </label>
+                    <select id="estado" th:field="*{estado}" class="form-select" required>
+                        <option value="DISPONIBLE">Disponible</option>
+                        <option value="EN_MANTENIMIENTO">En Mantenimiento / Revisión</option>
+                        <option value="BAJA">De Baja / Inactivo</option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Pie del Formulario -->
+        <div class="card-footer bg-light py-3 px-4 d-flex justify-content-end gap-2">
+            <a th:href="@{/stock}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary px-4">
+                <i class="bi bi-check-lg me-1"></i>
+                <span th:text="${esEdicion ? 'Actualizar Recurso' : 'Guardar Recurso'}"></span>
+            </button>
+        </div>
+    </form>
+
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+
+</body>
+</html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Stock y Personal - ' + ${evento.nombreEvento})}">
+    <title>EVENTIA | Recursos del Evento</title>
+</head>
+<body>
+
+<header th:replace="~{fragments/layout :: navbar}"></header>
+
+<main class="container py-4">
+
+    <!-- Cabecera del Evento -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge rounded-pill px-3 py-1"
+                      th:classappend="${evento.estado == 'PRESUPUESTADO' ? 'bg-warning-subtle text-warning-emphasis' :
+                                       (evento.estado == 'CONFIRMADO' ? 'bg-primary-subtle text-primary-emphasis' :
+                                       (evento.estado == 'EN_PROCESO' ? 'bg-info-subtle text-info-emphasis' :
+                                       'bg-success-subtle text-success-emphasis'))}"
+                      th:text="${evento.estado}"></span>
+                <h1 class="h3 fw-bold text-dark mb-0" th:text="${evento.nombreEvento}"></h1>
+            </div>
+            <p class="text-muted small mb-0">
+                <i class="bi bi-building me-1"></i>
+                <strong th:text="${evento.cliente?.razonSocial}"></strong>
+                <span class="mx-2">|</span>
+                <i class="bi bi-calendar3 me-1"></i>
+                <span th:text="${#temporals.format(evento.fechaInicio, 'dd/MM/yyyy') + ' al ' + #temporals.format(evento.fechaFin, 'dd/MM/yyyy')}"></span>
+                <span th:if="${evento.ubicacion != null and !evento.ubicacion.isEmpty()}">
+                    <span class="mx-2">|</span>
+                    <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                    <span th:text="${evento.ubicacion}"></span>
+                </span>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a th:href="@{/stock}" class="btn btn-outline-dark">
+                <i class="bi bi-box-seam me-1"></i> Ver Catálogo de Stock
+            </a>
+            <a th:href="@{/eventos/editar/{id}(id=${evento.id})}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil-square me-1"></i> Editar Evento
+            </a>
+            <a th:href="@{/eventos}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Volver a Eventos
+            </a>
+        </div>
+    </div>
+
+    <!-- Mensajes Flash -->
+    <div th:if="${mensajeExito}" class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <span th:text="${mensajeExito}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+
+    <div th:if="${mensajeError}" class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span th:text="${mensajeError}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+
+    <!-- Resumen Económico y de Dotación del Evento -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Partidas Asignadas</div>
+                    <div class="h3 fw-bold text-dark mb-0" th:text="${#lists.size(asignaciones)}">0</div>
+                    <div class="small text-muted">Material, equipo técnico y personal</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Coste Estimado de Recursos</div>
+                    <div class="h3 fw-bold text-primary mb-0"
+                         th:text="${#numbers.formatDecimal(costeTotalRecursos, 1, 'POINT', 2, 'COMMA') + ' €'}">0,00 €</div>
+                    <div class="small text-muted">Suma de tarifas de material y RR.HH.</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Presupuesto del Evento</div>
+                    <div class="h3 fw-bold text-dark mb-0">
+                        <span th:if="${evento.presupuesto != null}"
+                              th:text="${#numbers.formatDecimal(evento.presupuesto, 1, 'POINT', 2, 'COMMA') + ' €'}"></span>
+                        <span th:if="${evento.presupuesto == null}" class="text-muted">—</span>
+                    </div>
+                    <div class="small text-muted">Importe contratado con el cliente</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario para Asignar Material / Equipo Técnico / Personal / Animadores -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-plus-circle-fill text-primary me-2"></i>
+                Asignar Material, Equipo Técnico, Personal o Animadores al Evento
+            </h5>
+        </div>
+        <div class="card-body">
+            <form th:action="@{/stock/asignar}" method="post" class="row g-3 align-items-end">
+                <input type="hidden" name="eventoId" th:value="${evento.id}" />
+                <input type="hidden" name="origen" value="evento" />
+
+                <div class="col-12 col-md-5">
+                    <label for="recursoSelect" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Recurso de Stock / Personal <span class="text-danger">*</span>
+                    </label>
+                    <select id="recursoSelect" name="recursoId" class="form-select" required>
+                        <option value="">-- Selecciona Material, Equipo o Personal --</option>
+                        <option th:each="rec : ${catalogoDisponible}"
+                                th:value="${rec.id}"
+                                th:disabled="${rec.cantidadDisponible == 0}"
+                                th:text="${'[' + rec.codigo + '] ' + rec.nombre + ' (' + rec.categoria + ') — Disp: ' + rec.cantidadDisponible + '/' + rec.cantidadTotal}">
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-2">
+                    <label for="cantidadInput" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Cantidad <span class="text-danger">*</span>
+                    </label>
+                    <input type="number"
+                           id="cantidadInput"
+                           name="cantidad"
+                           min="1"
+                           value="1"
+                           class="form-control"
+                           required />
+                </div>
+
+                <div class="col-6 col-md-2">
+                    <label for="estadoAsignacion" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Estado
+                    </label>
+                    <select id="estadoAsignacion" name="estadoAsignacion" class="form-select">
+                        <option value="RESERVADO">Reservado</option>
+                        <option value="EN_USO">En Uso / En Recinto</option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <label for="responsableInput" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Responsable / Coordinador
+                    </label>
+                    <input type="text"
+                           id="responsableInput"
+                           name="responsable"
+                           class="form-control"
+                           placeholder="Ej. Jefe Técnico / Coordinador" />
+                </div>
+
+                <div class="col-12 col-md-9">
+                    <label for="observacionesInput" class="form-label small fw-bold text-uppercase text-secondary mb-1">
+                        Observaciones Operativas (Turno, Horario, Montaje)
+                    </label>
+                    <input type="text"
+                           id="observacionesInput"
+                           name="observaciones"
+                           class="form-control"
+                           placeholder="Ej. Montaje escenario principal, turno animadores 17:00 a 21:00h..." />
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check2-circle me-1"></i> Añadir al Evento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de Recursos y Personal Asignados al Evento -->
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-clipboard2-check text-secondary me-2"></i>
+                Dotación Asignada al Evento (Material, Equipos y Personal)
+            </h5>
+            <span class="badge bg-dark" th:text="${#lists.size(asignaciones) + ' partida(s)'}"></span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light text-uppercase small text-secondary">
+                <tr>
+                    <th class="ps-4 py-3">Código / Recurso</th>
+                    <th class="py-3">Categoría</th>
+                    <th class="py-3 text-center">Cantidad</th>
+                    <th class="py-3">Coste Estimado</th>
+                    <th class="py-3">Responsable y Notas</th>
+                    <th class="py-3">Estado</th>
+                    <th class="pe-4 py-3 text-end">Acciones</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="asig : ${asignaciones}">
+                    <!-- Recurso -->
+                    <td class="ps-4 py-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-dark font-monospace" th:text="${asig.recurso.codigo}"></span>
+                            <a th:href="@{/stock/detalle/{id}(id=${asig.recurso.id})}"
+                               class="fw-bold text-dark text-decoration-none"
+                               th:text="${asig.recurso.nombre}"></a>
+                        </div>
+                        <div class="small text-muted" th:if="${asig.recurso.ubicacionAlmacen != null}">
+                            <i class="bi bi-geo-fill me-1"></i>
+                            <span th:text="${asig.recurso.ubicacionAlmacen}"></span>
+                        </div>
+                    </td>
+
+                    <!-- Categoría -->
+                    <td class="py-3">
+                        <span class="badge rounded-pill px-3 py-2"
+                              th:classappend="${asig.recurso.categoria == 'SONIDO' ? 'bg-primary-subtle text-primary-emphasis border border-primary-subtle' :
+                                               (asig.recurso.categoria == 'ILUMINACION' ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' :
+                                               (asig.recurso.categoria == 'EQUIPO_TECNICO' ? 'bg-info-subtle text-info-emphasis border border-info-subtle' :
+                                               (asig.recurso.categoria == 'ESTRUCTURAS' ? 'bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle' :
+                                               (asig.recurso.categoria == 'PERSONAL_TECNICO' ? 'bg-dark-subtle text-dark-emphasis border border-dark-subtle' :
+                                               (asig.recurso.categoria == 'ANIMADORES' ? 'bg-danger-subtle text-danger-emphasis border border-danger-subtle' :
+                                               'bg-light text-dark border')))))}"
+                              th:text="${asig.recurso.categoria == 'SONIDO' ? 'Sonido y Audio' :
+                                        (asig.recurso.categoria == 'ILUMINACION' ? 'Iluminación' :
+                                        (asig.recurso.categoria == 'EQUIPO_TECNICO' ? 'Equipo Técnico' :
+                                        (asig.recurso.categoria == 'ESTRUCTURAS' ? 'Estructuras / Mobiliario' :
+                                        (asig.recurso.categoria == 'PERSONAL_TECNICO' ? 'Personal Técnico' :
+                                        (asig.recurso.categoria == 'ANIMADORES' ? 'Animadores' : 'Otros')))))}">
+                        </span>
+                    </td>
+
+                    <!-- Cantidad -->
+                    <td class="py-3 text-center fw-bold text-dark">
+                        <span th:text="${asig.cantidad}"></span>
+                        <span class="small fw-normal text-muted" th:text="${asig.recurso.personal ? 'efectivos' : 'uds.'}"></span>
+                    </td>
+
+                    <!-- Coste Estimado -->
+                    <td class="py-3 fw-semibold text-dark">
+                        <span th:if="${asig.costeEstimado != null and asig.costeEstimado > 0}"
+                              th:text="${#numbers.formatDecimal(asig.costeEstimado, 1, 'POINT', 2, 'COMMA') + ' €'}"></span>
+                        <span th:if="${asig.costeEstimado == null or asig.costeEstimado == 0}" class="text-muted">—</span>
+                    </td>
+
+                    <!-- Responsable y Notas -->
+                    <td class="py-3 small">
+                        <div th:if="${asig.responsable != null}" class="fw-semibold text-dark">
+                            <i class="bi bi-person-badge text-primary me-1"></i>
+                            <span th:text="${asig.responsable}"></span>
+                        </div>
+                        <div th:if="${asig.observaciones != null}" class="text-muted" th:text="${asig.observaciones}"></div>
+                        <span th:if="${asig.responsable == null and asig.observaciones == null}" class="text-muted">—</span>
+                    </td>
+
+                    <!-- Estado Asignación -->
+                    <td class="py-3">
+                        <span class="badge rounded-pill px-3 py-2"
+                              th:classappend="${asig.estadoAsignacion == 'RESERVADO' ? 'bg-warning-subtle text-warning-emphasis' :
+                                               (asig.estadoAsignacion == 'EN_USO' ? 'bg-primary-subtle text-primary-emphasis' :
+                                               'bg-success-subtle text-success-emphasis')}"
+                              th:text="${asig.estadoAsignacion}">
+                        </span>
+                    </td>
+
+                    <!-- Acciones -->
+                    <td class="pe-4 py-3 text-end">
+                        <div class="d-inline-flex gap-1 align-items-center">
+                            <form th:if="${asig.estadoAsignacion != 'EN_USO'}"
+                                  th:action="@{/stock/asignaciones/{id}/estado(id=${asig.id})}"
+                                  method="post" class="d-inline">
+                                <input type="hidden" name="nuevoEstado" value="EN_USO" />
+                                <input type="hidden" name="origen" value="evento" />
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Marcar En Uso">
+                                    En Uso
+                                </button>
+                            </form>
+                            <form th:if="${asig.estadoAsignacion != 'DEVUELTO'}"
+                                  th:action="@{/stock/asignaciones/{id}/estado(id=${asig.id})}"
+                                  method="post" class="d-inline">
+                                <input type="hidden" name="nuevoEstado" value="DEVUELTO" />
+                                <input type="hidden" name="origen" value="evento" />
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Marcar Devuelto (Libera Stock)">
+                                    <i class="bi bi-arrow-return-left me-1"></i> Devuelto
+                                </button>
+                            </form>
+                            <form th:action="@{/stock/asignaciones/{id}/eliminar(id=${asig.id})}"
+                                  method="post"
+                                  class="d-inline"
+                                  onsubmit="return confirm('¿Deseas quitar este recurso del evento y liberar su stock?');">
+                                <input type="hidden" name="origen" value="evento" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Quitar del Evento">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Sin asignaciones -->
+                <tr th:if="${#lists.isEmpty(asignaciones)}">
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="bi bi-box-seam fs-2 d-block mb-2"></i>
+                        Todavía no se ha asignado material, equipo técnico ni personal a este evento.
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+
+</body>
+</html>

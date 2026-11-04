@@ -70,6 +70,13 @@
                             <i class="bi bi-calendar-event me-1"></i> Eventos
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 rounded"
+                           th:classappend="${seccionActiva == 'stock'} ? 'active bg-secondary bg-opacity-25 fw-semibold text-white' : ''"
+                           th:href="@{/stock}">
+                            <i class="bi bi-box-seam me-1"></i> Stock y Recursos
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>

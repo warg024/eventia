@@ -16,9 +16,16 @@
                 th:text="${esEdicion ? 'Editar Evento' : 'Nuevo Evento'}"></h1>
             <p class="text-muted small mb-0">Registro de datos técnicos y económicos para la gestión de EVENTIA</p>
         </div>
-        <a th:href="@{/eventos}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i> Volver a Eventos
-        </a>
+        <div class="d-flex gap-2">
+            <a th:if="${esEdicion and evento.id != null}"
+               th:href="@{/eventos/{id}/recursos(id=${evento.id})}"
+               class="btn btn-dark">
+                <i class="bi bi-box-seam me-1"></i> Gestionar Stock y Personal del Evento
+            </a>
+            <a th:href="@{/eventos}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Volver a Eventos
+            </a>
+        </div>
     </div>
 
     <!-- Alerta de Error -->

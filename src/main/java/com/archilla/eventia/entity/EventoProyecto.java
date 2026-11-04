@@ -9,6 +9,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Entidad JPA que representa un Evento o Proyecto organizado por EVENTIA.
@@ -22,8 +24,8 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = "cliente")
-@EqualsAndHashCode(exclude = "cliente")
+@ToString(exclude = {"cliente", "asignaciones"})
+@EqualsAndHashCode(exclude = {"cliente", "asignaciones"})
 public class EventoProyecto {
 
     /**
@@ -88,4 +90,11 @@ public class EventoProyecto {
             foreignKey = @ForeignKey(name = "fk_eventos_clientes")
     )
     private Cliente cliente;
+
+    /**
+     * Recursos de stock (material, equipo técnico, personal técnico, animadores) asignados al evento.
+     */
+    @OneToMany(mappedBy = "evento", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"evento", "hibernateLazyInitializer", "handler"})
+    private List<AsignacionEvento> asignaciones = new ArrayList<>();
 }

@@ -1,9 +1,12 @@
 package com.archilla.eventia.controller;
 
+import com.archilla.eventia.entity.AsignacionEvento;
 import com.archilla.eventia.entity.Cliente;
 import com.archilla.eventia.entity.EventoProyecto;
+import com.archilla.eventia.entity.RecursoStock;
 import com.archilla.eventia.service.ClienteService;
 import com.archilla.eventia.service.EventoProyectoService;
+import com.archilla.eventia.service.StockService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -12,6 +15,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -25,6 +29,7 @@ public class EventoProyectoController {
 
     private final EventoProyectoService eventoService;
     private final ClienteService clienteService;
+    private final StockService stockService;
 
     /**
      * GET /eventos
@@ -120,6 +125,32 @@ public class EventoProyectoController {
         flash.addFlashAttribute("mensajeExito",
                 eraEdicion ? "Evento / Proyecto actualizado correctamente." : "Nuevo Evento / Proyecto registrado con éxito.");
         return "redirect:/eventos";
+    }
+
+    /**
+     * GET /eventos/{id}/recursos
+     * Muestra el panel de gestión de material, equipo técnico, personal técnico y animadores
+     * asignados a un evento específico.
+     */
+    @GetMapping("/{id}/recursos")
+    public String gestionarRecursosEvento(@PathVariable Long id, Model model, RedirectAttributes flash) {
+        return eventoService.obtenerPorId(id)
+                .map(evento -> {
+                    List<AsignacionEvento> asignaciones = stockService.listarAsignacionesPorEvento(id);
+                    List<RecursoStock> catalogoDisponible = stockService.listarRecursosOperativos();
+                    BigDecimal costeTotalRecursos = stockService.calcularCosteTotalRecursosEvento(id);
+
+                    model.addAttribute("evento", evento);
+                    model.addAttribute("asignaciones", asignaciones);
+                    model.addAttribute("catalogoDisponible", catalogoDisponible);
+                    model.addAttribute("costeTotalRecursos", costeTotalRecursos);
+                    model.addAttribute("seccionActiva", "eventos");
+                    return "eventos/recursos";
+                })
+                .orElseGet(() -> {
+                    flash.addFlashAttribute("mensajeError", "El evento solicitado no existe.");
+                    return "redirect:/eventos";
+                });
     }
 
     /**

@@ -145,6 +145,14 @@
                     <!-- Acciones -->
                     <td class="pe-4 py-3 text-end">
                         <div class="d-inline-flex gap-2">
+                            <a th:href="@{/eventos/{id}/recursos(id=${evento.id})}"
+                               class="btn btn-sm btn-outline-dark"
+                               title="Gestionar Material, Equipo Técnico, Personal y Animadores">
+                                <i class="bi bi-box-seam me-1"></i> Stock / Recursos
+                                <span th:if="${evento.asignaciones != null and !evento.asignaciones.isEmpty()}"
+                                      class="badge text-bg-dark ms-1"
+                                      th:text="${#lists.size(evento.asignaciones)}"></span>
+                            </a>
                             <a th:href="@{/eventos/editar/{id}(id=${evento.id})}"
                                class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil-square me-1"></i> Editar
