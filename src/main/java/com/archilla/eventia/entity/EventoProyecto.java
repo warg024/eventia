@@ -94,7 +94,7 @@ public class EventoProyecto {
     /**
      * Recursos de stock (material, equipo técnico, personal técnico, animadores) asignados al evento.
      */
-    @OneToMany(mappedBy = "evento", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "evento", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JsonIgnoreProperties({"evento", "hibernateLazyInitializer", "handler"})
     private List<AsignacionEvento> asignaciones = new ArrayList<>();
 }
